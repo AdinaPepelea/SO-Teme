@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+int permission=0;
+
 void continut(const char *path, char* name_ends_with, int recursive){
     DIR *dir = NULL;
     struct dirent *entry = NULL;
@@ -15,7 +17,7 @@ void continut(const char *path, char* name_ends_with, int recursive){
     
     dir = opendir(path);
     if(dir == NULL) {
-        printf("Could not open directory\n");
+        printf("ERROR\ninvalid directory path");
         return;
     }
     printf("SUCCESS\n");
@@ -24,7 +26,12 @@ void continut(const char *path, char* name_ends_with, int recursive){
             snprintf(fullPath, 512, "%s/%s", path, entry->d_name);
                 if(lstat(fullPath, &statbuf) == 0) {
                     if(S_ISREG(statbuf.st_mode) || S_ISDIR(statbuf.st_mode)){
-                        if(strstr(entry->d_name, name_ends_with)!=NULL && strcmp(strstr(entry->d_name, name_ends_with), name_ends_with)==0){
+                        if(permission==1){
+                            if(S_IWUSR & statbuf.st_mode){
+                                printf("%s\n", fullPath);
+                            }
+                        }
+                        else if(strstr(entry->d_name, name_ends_with)!=NULL && strcmp(strstr(entry->d_name, name_ends_with), name_ends_with)==0){
                             printf("%s\n", fullPath);
                         }
                     }
@@ -33,40 +40,6 @@ void continut(const char *path, char* name_ends_with, int recursive){
                         continut(path, name_ends_with, recursive);
                     }
                 }
-        }
-    }   
-    closedir(dir);
-}
-
-void continut1(const char *path, char* name_ends_with){
-    DIR *dir = NULL;
-    struct dirent *entry = NULL;
-    char fullPath[512];
-    struct stat statbuf;
-    
-    dir = opendir(path);
-    if(dir == NULL) {
-        printf("Could not open directory\n");
-        return;
-    }
-    printf("SUCCESS\n");
-    while((entry = readdir(dir)) != NULL) {
-        if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-            if(strcmp(name_ends_with,"")==0){
-                if(strstr(entry->d_name, name_ends_with)!=NULL && strcmp(strstr(entry->d_name, name_ends_with), name_ends_with)==0){
-                snprintf(fullPath, 512, "%s/%s", path, entry->d_name);
-                if(lstat(fullPath, &statbuf) == 0) {
-                    printf("%s\n", fullPath);
-                }
-            }
-            else{
-                snprintf(fullPath, 512, "%s/%s", path, entry->d_name);
-                if(lstat(fullPath, &statbuf) == 0) {
-                    printf("%s\n", fullPath);
-                }
-            }
-            }
-            
         }
     }   
     closedir(dir);
@@ -131,6 +104,7 @@ int main(int argc, char **argv){
     char path[512]="";
     char name_ends_with[512]="";
     int recursive=0;
+
     if(strcmp(argv[1], "variant")==0)
     {
         printf("93348\n");
@@ -145,6 +119,9 @@ int main(int argc, char **argv){
             }
             if(strstr(argv[i], "name_ends_with=")!=NULL){
                 strcpy(name_ends_with, argv[i]+15);
+            }
+            if(strstr(argv[i], "has_perm_write")!=NULL){
+                permission=1;
             }
         }
         continut(path, name_ends_with, recursive);
