@@ -9,7 +9,7 @@
 
 int permission=0;
 
-void continut(const char *path, char* name_ends_with, int recursive){
+void continut(const char *path, char* name_ends_with){
     DIR *dir = NULL;
     struct dirent *entry = NULL;
     char fullPath[512];
@@ -31,13 +31,12 @@ void continut(const char *path, char* name_ends_with, int recursive){
                                 printf("%s\n", fullPath);
                             }
                         }
-                        else if(strstr(entry->d_name, name_ends_with)!=NULL && strcmp(strstr(entry->d_name, name_ends_with), name_ends_with)==0){
+                        else if(strcmp(name_ends_with,"")!=0 && strstr(entry->d_name, name_ends_with)!=NULL && strcmp(strstr(entry->d_name, name_ends_with), name_ends_with)==0){
+                            printf("%s\n", fullPath);
+                        }else{
+                            if(strcmp(name_ends_with,"")==0)
                             printf("%s\n", fullPath);
                         }
-                    }
-                    if(recursive==1 && S_ISDIR(statbuf.st_mode))
-                    {
-                        continut(path, name_ends_with, recursive);
                     }
                 }
         }
@@ -45,15 +44,52 @@ void continut(const char *path, char* name_ends_with, int recursive){
     closedir(dir);
 }
 
+void continut_recursive(const char *path, char* name_ends_with){
+    DIR *dir = NULL;
+    struct dirent *entry = NULL;
+    char fullPath[512];
+    struct stat statbuf;
+    
+    dir = opendir(path);
+    if(dir == NULL) {
+        printf("ERROR\ninvalid directory path");
+        return;
+    }
+    
+    while((entry = readdir(dir)) != NULL) {
+        if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+            snprintf(fullPath, 512, "%s/%s", path, entry->d_name);
+                if(lstat(fullPath, &statbuf) == 0) {
+                        if(permission==1){
+                            if(S_IWUSR & statbuf.st_mode){
+                                printf("%s\n", fullPath);
+                            }
+                        }
+                        else if(strcmp(name_ends_with,"")!=0 && strstr(entry->d_name, name_ends_with)!=NULL && strcmp(strstr(entry->d_name, name_ends_with), name_ends_with)==0){
+                            printf("%s\n", fullPath);
+                        }else{
+                            if(strcmp(name_ends_with,"")==0)
+                            printf("%s\n", fullPath);
+                        }
+                    if(S_ISDIR(statbuf.st_mode))
+                    {
+                        continut_recursive(fullPath, name_ends_with);
+                    }
+                }
+        }
+    }   
+    closedir(dir);
+}
 
 void parse(const char *path){
     char MAGIC;
-    int VERSION;
-    int NO_OF_SECTIONS;
-    int SECT_TIPE;
-    int HEADER_SIZE;
+    unsigned short VERSION;
+    unsigned char  NO_OF_SECTIONS;
+    unsigned short SECT_TIPE;
+    unsigned short HEADER_SIZE;
     char name[16];
     int size;
+    int offset;
     int fd=-1;
     fd=open(path, O_RDONLY);
     if(-1==fd){
@@ -93,7 +129,7 @@ void parse(const char *path){
     for(int i=0;i<NO_OF_SECTIONS;i++){
         read(fd, &name, 15);
         read(fd, &SECT_TIPE, 2);
-        lseek(fd, 4, SEEK_CUR);
+        read(fd, &offset, 4);
         read(fd, &size, 4);
         printf("section%d: %s %d %d\n", i+1, name, SECT_TIPE, size);
     }
@@ -124,7 +160,13 @@ int main(int argc, char **argv){
                 permission=1;
             }
         }
-        continut(path, name_ends_with, recursive);
+        if(recursive==0){
+            continut(path, name_ends_with);
+        }
+        else {
+            printf("SUCCESS\n");
+            continut_recursive(path, name_ends_with);
+        }
     }
    else if(strstr(argv[1], "parse")!=NULL)
    {
