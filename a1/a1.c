@@ -114,9 +114,10 @@ void parse(const char *path){
         printf("ERROR\n wrong sect_nr");
         exit(-1);
     }
+    lseek(fd, 15, SEEK_CUR);
     for(int i=0;i<NO_OF_SECTIONS;i++){
         read(fd, &SECT_TIPE, 2);
-        lseek(fd, -8, SEEK_CUR);
+        lseek(fd, 23, SEEK_CUR);
         if(SECT_TIPE!=46 && SECT_TIPE!=37 && SECT_TIPE!=17 && SECT_TIPE!=85){
             printf("ERROR\n wrong sect_types");
             exit(-1);
@@ -125,7 +126,7 @@ void parse(const char *path){
     printf("SUCCESS\n");
     printf("version=%d\n", VERSION);
     printf("nr_sections=%d\n", NO_OF_SECTIONS);
-    lseek(fd, -HEADER_SIZE+2, SEEK_END);
+    lseek(fd, -HEADER_SIZE+3, SEEK_END);
     for(int i=0;i<NO_OF_SECTIONS;i++){
         read(fd, &name, 15);
         read(fd, &SECT_TIPE, 2);
@@ -133,6 +134,60 @@ void parse(const char *path){
         read(fd, &size, 4);
         printf("section%d: %s %d %d\n", i+1, name, SECT_TIPE, size);
     }
+    close(fd);
+}
+
+void findall(const char *path){
+    char* name_ends_with="";
+    char MAGIC;
+    unsigned short VERSION;
+    unsigned char  NO_OF_SECTIONS;
+    unsigned short SECT_TIPE;
+    unsigned short HEADER_SIZE;
+    char name[16];
+    int size;
+    int offset;
+    int fd=-1;
+    fd=open(path, O_RDONLY);
+    if(-1==fd){
+        printf("Could not open input file\n");
+    }
+    lseek(fd, -1, SEEK_END);
+    read(fd, &MAGIC, 1);
+    lseek(fd, -3, SEEK_END);
+    read(fd, &HEADER_SIZE, 2);
+    lseek(fd, -HEADER_SIZE, SEEK_END);
+    read(fd, &VERSION, 2);
+    read(fd, &NO_OF_SECTIONS, 1);
+    if(MAGIC!='I'){
+        exit(-1);
+    }
+    if(VERSION<67 || VERSION>177){
+        exit(-1);
+    }
+    if(NO_OF_SECTIONS<2 || NO_OF_SECTIONS>16){
+        exit(-1);
+    }
+    lseek(fd, 15, SEEK_CUR);
+    for(int i=0;i<NO_OF_SECTIONS;i++){
+        read(fd, &SECT_TIPE, 2);
+        lseek(fd, 23, SEEK_CUR);
+        if(SECT_TIPE!=46 && SECT_TIPE!=37 && SECT_TIPE!=17 && SECT_TIPE!=85){
+            exit(-1);
+        }
+    }
+    printf("SUCCESS\n");
+    lseek(fd, -HEADER_SIZE+3, SEEK_END);
+    for(int i=0;i<NO_OF_SECTIONS;i++){
+        read(fd, &name, 15);
+        read(fd, &SECT_TIPE, 2);
+        read(fd, &offset, 4);
+        read(fd, &size, 4);
+        if(size>953){
+            exit(-1);
+        }
+    }
+    continut_recursive(path, name_ends_with);
     close(fd);
 }
 
@@ -176,6 +231,14 @@ int main(int argc, char **argv){
         }
     }
     parse(path);
+   }
+   else if(strstr(argv[1], "findall")!=NULL){
+    for(int i=2;i<argc;i++){
+        if(strstr(argv[i],"path=")!=NULL){
+                strcpy(path,argv[i]+5);
+        }
+   }
+   findall(path);
    }
     return 0;
 }
