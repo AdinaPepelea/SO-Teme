@@ -8,6 +8,7 @@
 #include <fcntl.h>
 
 int permission=0;
+int parse1=0;
 
 void continut(const char *path, char* name_ends_with){
     DIR *dir = NULL;
@@ -37,43 +38,6 @@ void continut(const char *path, char* name_ends_with){
                             if(strcmp(name_ends_with,"")==0)
                             printf("%s\n", fullPath);
                         }
-                    }
-                }
-        }
-    }   
-    closedir(dir);
-}
-
-void continut_recursive(const char *path, char* name_ends_with){
-    DIR *dir = NULL;
-    struct dirent *entry = NULL;
-    char fullPath[512];
-    struct stat statbuf;
-    
-    dir = opendir(path);
-    if(dir == NULL) {
-        printf("ERROR\ninvalid directory path");
-        return;
-    }
-    
-    while((entry = readdir(dir)) != NULL) {
-        if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-            snprintf(fullPath, 512, "%s/%s", path, entry->d_name);
-                if(lstat(fullPath, &statbuf) == 0) {
-                        if(permission==1){
-                            if(S_IWUSR & statbuf.st_mode){
-                                printf("%s\n", fullPath);
-                            }
-                        }
-                        else if(strcmp(name_ends_with,"")!=0 && strstr(entry->d_name, name_ends_with)!=NULL && strcmp(strstr(entry->d_name, name_ends_with), name_ends_with)==0){
-                            printf("%s\n", fullPath);
-                        }else{
-                            if(strcmp(name_ends_with,"")==0)
-                            printf("%s\n", fullPath);
-                        }
-                    if(S_ISDIR(statbuf.st_mode))
-                    {
-                        continut_recursive(fullPath, name_ends_with);
                     }
                 }
         }
@@ -129,6 +93,7 @@ void parse(const char *path){
     lseek(fd, -HEADER_SIZE+3, SEEK_END);
     for(int i=0;i<NO_OF_SECTIONS;i++){
         read(fd, &name, 15);
+        name[15]='\0';
         read(fd, &SECT_TIPE, 2);
         read(fd, &offset, 4);
         read(fd, &size, 4);
@@ -138,7 +103,6 @@ void parse(const char *path){
 }
 
 void findall(const char *path){
-    char* name_ends_with="";
     char MAGIC;
     unsigned short VERSION;
     unsigned char  NO_OF_SECTIONS;
@@ -160,23 +124,22 @@ void findall(const char *path){
     read(fd, &VERSION, 2);
     read(fd, &NO_OF_SECTIONS, 1);
     if(MAGIC!='I'){
-        exit(-1);
+        return;
     }
     if(VERSION<67 || VERSION>177){
-        exit(-1);
+        return;
     }
     if(NO_OF_SECTIONS<2 || NO_OF_SECTIONS>16){
-        exit(-1);
+        return;
     }
     lseek(fd, 15, SEEK_CUR);
     for(int i=0;i<NO_OF_SECTIONS;i++){
         read(fd, &SECT_TIPE, 2);
         lseek(fd, 23, SEEK_CUR);
         if(SECT_TIPE!=46 && SECT_TIPE!=37 && SECT_TIPE!=17 && SECT_TIPE!=85){
-            exit(-1);
+            return;
         }
     }
-    printf("SUCCESS\n");
     lseek(fd, -HEADER_SIZE+3, SEEK_END);
     for(int i=0;i<NO_OF_SECTIONS;i++){
         read(fd, &name, 15);
@@ -184,11 +147,55 @@ void findall(const char *path){
         read(fd, &offset, 4);
         read(fd, &size, 4);
         if(size>953){
-            exit(-1);
+            return;
         }
     }
-    continut_recursive(path, name_ends_with);
+    printf("%s\n",path);
     close(fd);
+}
+
+void continut_recursive(const char *path, char* name_ends_with){
+    DIR *dir = NULL;
+    struct dirent *entry = NULL;
+    char fullPath[512];
+    struct stat statbuf;
+    
+    dir = opendir(path);
+    if(dir == NULL) {
+        printf("ERROR\ninvalid directory path");
+        return;
+    }
+    
+    while((entry = readdir(dir)) != NULL) {
+        if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+            snprintf(fullPath, 512, "%s/%s", path, entry->d_name);
+                if(lstat(fullPath, &statbuf) == 0) {
+                        if(permission==1){
+                            if(S_IWUSR & statbuf.st_mode){
+                                printf("%s\n", fullPath);
+                            }
+                        }
+                        if(parse1==0){
+                            if(strcmp(name_ends_with,"")!=0 && strstr(entry->d_name, name_ends_with)!=NULL && strcmp(strstr(entry->d_name, name_ends_with), name_ends_with)==0){
+                                printf("%s\n", fullPath);
+                            }else{
+                            if(strcmp(name_ends_with,"")==0)
+                                printf("%s\n", fullPath);
+                            }
+                        }
+                        else{
+                            if(S_ISREG(statbuf.st_mode)){
+                                    findall(fullPath);
+                    }
+                        }
+                    if(S_ISDIR(statbuf.st_mode))
+                    {
+                        continut_recursive(fullPath, name_ends_with);
+                    }
+                }
+        }
+    }   
+    closedir(dir);
 }
 
 int main(int argc, char **argv){
@@ -233,12 +240,14 @@ int main(int argc, char **argv){
     parse(path);
    }
    else if(strstr(argv[1], "findall")!=NULL){
+    parse1=1;
     for(int i=2;i<argc;i++){
         if(strstr(argv[i],"path=")!=NULL){
                 strcpy(path,argv[i]+5);
         }
    }
-   findall(path);
+   printf("SUCCESS\n");
+   continut_recursive(path, name_ends_with);
    }
     return 0;
 }
