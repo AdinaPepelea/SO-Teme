@@ -4,6 +4,29 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "a2_helper.h"
+#include <semaphore.h>
+#include <pthread.h>
+
+#define NR_THREADS 4
+
+pthread_t tids[NR_THREADS];
+int ok=0;
+
+void *threadFn(void *unused){
+    int arg = *(int *) unused;
+    if((3 == arg || 4 == arg) && ok == 0){
+        info(BEGIN, 3, 4);
+        info(BEGIN, 3, 3);
+        info(END, 3, 3);
+        info(END, 3, 4);
+        ok=1;
+    }
+    else if(4 != arg){
+        info(BEGIN, 3, arg);
+        info(END, 3, arg);
+    }
+    return NULL;
+}
 
 int main()
 {
@@ -37,6 +60,10 @@ int main()
     }
     else if(0 == pid3){
         info(BEGIN, 3, 0);
+        for(int i=1;i<=4;i++){
+            pthread_create(&tids[i], NULL, threadFn, &i);
+            pthread_join(tids[i], NULL);
+        }
         pid4 = fork();
         if(-1 == pid4){
             perror("Nu s-a creat p4");
