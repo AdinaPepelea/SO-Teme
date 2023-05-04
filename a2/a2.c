@@ -9,16 +9,18 @@
 
 #define NR_THREADS 4
 #define NR_THREADS1 39
+#define NR_THREADS2 4
 
 pthread_t tids[NR_THREADS];
 pthread_t tids1[NR_THREADS1];
+pthread_t tids2[NR_THREADS2];
 int ok = 0;
 sem_t sem1;
 
 void *threadFn(void *unused)
 {
     int arg = *(int *)unused;
-    if (4 == arg && ok==0)
+    if (4 == arg && ok == 0)
     {
         info(BEGIN, 3, 4);
         info(BEGIN, 3, 3);
@@ -26,7 +28,7 @@ void *threadFn(void *unused)
         info(END, 3, 4);
         ok = 1;
     }
-    else if(arg!=3 && arg!=4)
+    else if (arg != 3 && arg != 4)
     {
         info(BEGIN, 3, arg);
         info(END, 3, arg);
@@ -44,6 +46,14 @@ void *threadFn1(void *unused)
     return NULL;
 }
 
+void *threadFn2(void *unused)
+{
+    int arg = *(int *)unused;
+    info(BEGIN, 2, arg);
+    info(END, 2, arg);
+    return NULL;
+}
+
 int main()
 {
     init();
@@ -53,8 +63,9 @@ int main()
     pid_t pid5;
     pid_t pid6;
     pid_t pid7;
-    int ids[4] = {1,2,3,4};
+    int ids[4] = {1, 2, 3, 4};
     int idss[39];
+    int idsss[4];
     sem_init(&sem1, 0, 4);
     info(BEGIN, 1, 0);
     pid2 = fork();
@@ -66,6 +77,15 @@ int main()
     else if (0 == pid2)
     {
         info(BEGIN, 2, 0);
+        for (int i = 0; i < 4; i++)
+        {
+            idsss[i] = i + 1;
+            pthread_create(&tids2[i], NULL, threadFn2, &idsss[i]);
+        }
+        for (int i = 0; i < 4; i++)
+        {
+            pthread_join(tids2[i], NULL);
+        }
         info(END, 2, 0);
         return 0;
     }
@@ -85,9 +105,9 @@ int main()
         for (int i = 0; i < 4; i++)
         {
             pthread_create(&tids[i], NULL, threadFn, &ids[i]);
-            
         }
-        for (int i = 0; i < 4; i++){
+        for (int i = 0; i < 4; i++)
+        {
             pthread_join(tids[i], NULL);
         }
         pid4 = fork();
@@ -143,9 +163,8 @@ int main()
                 sem_init(&sem1, 0, 4);
                 for (int i = 0; i < 39; i++)
                 {
-                    idss[i] = i+1;
+                    idss[i] = i + 1;
                     pthread_create(&tids1[i], NULL, threadFn1, &idss[i]);
-                    
                 }
                 for (int i = 0; i < 39; i++)
                 {
