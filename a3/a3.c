@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/mman.h>
 
 #define FIFO_NAME "RESP_PIPE_93348"
 #define FIFO_NAME1 "REQ_PIPE_93348"
@@ -12,46 +13,83 @@
 #define VARIANT_MESSAGE "VARIANT$"
 #define VARIANT_MESSAGE_R "VARIANT$"
 #define VARIANT_MESSAGE_R1 "VALUE$"
+#define CREATE_SHM_MESSAGE "CREATE_SHM$"
+#define MAP_FILE_MESSAGE "MAP_FILE$"
 
 int main()
 {
     unsigned int fd = -1;
     unsigned int fd1 = -1;
 
-    if(mkfifo(FIFO_NAME, 0600) != 0){
+    if (mkfifo(FIFO_NAME, 0600) != 0)
+    {
         perror("ERROR\ncannot create the response pipe");
         return 1;
     }
     fd1 = open(FIFO_NAME1, O_RDONLY);
-    if(fd1 == -1) {
+    if (fd1 == -1)
+    {
         perror("ERROR\ncannot open the request pipe");
         return 1;
     }
     fd = open(FIFO_NAME, O_WRONLY);
-    if(fd == -1) {
+    if (fd == -1)
+    {
         perror("ERROR\ncannot open the response pipe");
         return 1;
     }
-    const char* message = "START$";
+    const char *message = "START$";
     write(fd, message, strlen(message));
     printf("SUCCESS\n");
 
-    int ok=0;
+    int ok = 0;
     char Message[50];
-    int nr=93348;
-    int i=0;
+    int nr = 93348;
+    int i = 0;
     read(fd1, &Message[i], 1);
-    while(Message[i]!='$'){
+    while (Message[i] != '$')
+    {
         i++;
         read(fd1, &Message[i], 1);
     }
-    while(ok==0){
-        if(strcmp(Message, VARIANT_MESSAGE)==0){
+    while (ok == 0)
+    {
+        if (strcmp(Message, VARIANT_MESSAGE) == 0)
+        {
             write(fd, VARIANT_MESSAGE_R, strlen(VARIANT_MESSAGE_R));
             write(fd, &nr, sizeof(nr));
             write(fd, VARIANT_MESSAGE_R1, strlen(VARIANT_MESSAGE_R1));
         }
-        ok=1;
+        else if (strcmp(Message, CREATE_SHM_MESSAGE) == 0)
+        {
+            int shmFd;
+            int nr;
+            read(fd1, &nr, sizeof(unsigned int));
+            shmFd = shm_open("/7Crieg", O_CREAT | O_RDWR, 0664);
+            ftruncate(shmFd, nr);
+            if (shmFd < 0)
+            {
+                write(fd, CREATE_SHM_MESSAGE, strlen(CREATE_SHM_MESSAGE));
+                write(fd, "ERROR$", strlen("ERROR$"));
+            }
+            else
+            {
+                write(fd, CREATE_SHM_MESSAGE, strlen(CREATE_SHM_MESSAGE));
+                write(fd, "SUCCESS$", strlen("SUCCESS$"));
+            }
+        }
+        // else if (strcmp(Message, MAP_FILE_MESSAGE) == 0)
+        // {
+        //     char *text;
+        //     read(fd1, &text[i], 1);
+        //     while (text[i] != '$')
+        //     {
+        //         i++;
+        //         read(fd1, &text[i], 1);
+        //     }
+
+        // }
+        ok = 1;
     }
     close(fd1);
     close(fd);
