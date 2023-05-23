@@ -79,17 +79,35 @@ int main()
                 write(fd, "SUCCESS$", strlen("SUCCESS$"));
             }
         }
-        // else if (strcmp(Message, MAP_FILE_MESSAGE) == 0)
-        // {
-        //     char *text;
-        //     read(fd1, &text[i], 1);
-        //     while (text[i] != '$')
-        //     {
-        //         i++;
-        //         read(fd1, &text[i], 1);
-        //     }
-
-        // }
+        else if (strcmp(Message, MAP_FILE_MESSAGE) == 0)
+        {
+            char text[50];
+            read(fd1, &text[i], 1);
+            while (text[i] != '$')
+            {
+                i++;
+                read(fd1, &text[i], 1);
+            }
+            int fd2;
+            off_t size;
+            char *data = NULL;
+            fd2 = open(text, O_RDONLY);
+            if(fd2 == -1){
+                write(fd, MAP_FILE_MESSAGE, strlen(MAP_FILE_MESSAGE));
+                write(fd, "ERROR$", strlen("ERROR$"));
+            }
+            size = lseek(fd2, 0, SEEK_END);
+            lseek(fd2, 0, SEEK_SET);
+            data=(char*)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd2, 0);
+            if(data == (void*)-1){
+                write(fd, MAP_FILE_MESSAGE, strlen(MAP_FILE_MESSAGE));
+                write(fd, "ERROR$", strlen("ERROR$"));
+            }
+            else{
+                write(fd, MAP_FILE_MESSAGE, strlen(MAP_FILE_MESSAGE));
+                write(fd, "SUCCESS$", strlen("SUCCESS$"));
+            }
+        }
         else if(strcmp(Message, EXIT_MESSAGE) == 0){
             close(fd1);
             close(fd);
