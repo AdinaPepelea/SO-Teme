@@ -15,12 +15,16 @@
 #define VARIANT_MESSAGE_R1 "VALUE$"
 #define CREATE_SHM_MESSAGE "CREATE_SHM$"
 #define MAP_FILE_MESSAGE "MAP_FILE$"
+#define WRITE_TO_SHM_MESSAGE "WRITE_TO_SHM_MESSAGE$"
 #define EXIT_MESSAGE "EXIT$"
 
 int main()
 {
     unsigned int fd = -1;
     unsigned int fd1 = -1;
+
+    char *data = NULL;
+    int shmFd;
 
     if (mkfifo(FIFO_NAME, 0600) != 0)
     {
@@ -47,14 +51,21 @@ int main()
     char Message[50];
     int nr = 93348;
     int i = 0;
-    read(fd1, &Message[i], 1);
+    /*read(fd1, &Message[i], 1);
     while (Message[i] != '$')
     {
         i++;
         read(fd1, &Message[i], 1);
-    }
+    }*/
     while (ok == 0)
     {
+        read(fd1, &Message[i], 1);
+        while (Message[i] != '$')
+        {
+            i++;
+            read(fd1, &Message[i], 1);
+        }
+
         if (strcmp(Message, VARIANT_MESSAGE) == 0)
         {
             write(fd, VARIANT_MESSAGE_R, strlen(VARIANT_MESSAGE_R));
@@ -63,7 +74,6 @@ int main()
         }
         else if (strcmp(Message, CREATE_SHM_MESSAGE) == 0)
         {
-            int shmFd;
             int nr;
             read(fd1, &nr, sizeof(unsigned int));
             shmFd = shm_open("/7Crieg", O_CREAT | O_RDWR, 0664);
@@ -90,30 +100,55 @@ int main()
             }
             int fd2;
             off_t size;
-            char *data = NULL;
             fd2 = open(text, O_RDONLY);
-            if(fd2 == -1){
+            if (fd2 == -1)
+            {
                 write(fd, MAP_FILE_MESSAGE, strlen(MAP_FILE_MESSAGE));
                 write(fd, "ERROR$", strlen("ERROR$"));
             }
             size = lseek(fd2, 0, SEEK_END);
             lseek(fd2, 0, SEEK_SET);
-            data=(char*)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd2, 0);
-            if(data == (void*)-1){
+            data = (char *)mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd2, 0);
+            if (data == (void *)-1)
+            {
                 write(fd, MAP_FILE_MESSAGE, strlen(MAP_FILE_MESSAGE));
                 write(fd, "ERROR$", strlen("ERROR$"));
             }
-            else{
+            else
+            {
                 write(fd, MAP_FILE_MESSAGE, strlen(MAP_FILE_MESSAGE));
                 write(fd, "SUCCESS$", strlen("SUCCESS$"));
             }
         }
-        else if(strcmp(Message, EXIT_MESSAGE) == 0){
+        else if (strcmp(Message, WRITE_TO_SHM_MESSAGE) == 0)
+        {
+            unsigned int offset, value;
+            read(fd1, &offset, sizeof(unsigned int));
+            read(fd1, &value, sizeof(unsigned int));
+            if ((offset < 0) || (offset > 4076926) || (offset+(sizeof(unsigned int)) > 4076926))
+            {
+                write(fd, WRITE_TO_SHM_MESSAGE, strlen(WRITE_TO_SHM_MESSAGE));
+                write(fd, "ERROR$", strlen("ERROR$"));
+            }
+            else
+            {
+                *(int *)(data + offset) = value;
+                write(fd, WRITE_TO_SHM_MESSAGE, strlen(WRITE_TO_SHM_MESSAGE));
+                write(fd, "SUCCESS$", strlen("SUCCESS$"));
+                
+            }
+        }
+        else if (strcmp(Message, EXIT_MESSAGE) == 0)
+        {
+            
             close(fd1);
             close(fd);
+            close(shmFd);
+            shm_unlink("/7Crieg");
             unlink(FIFO_NAME);
         }
         ok = 1;
+        
     }
     return 0;
 }
