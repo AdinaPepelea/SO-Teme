@@ -15,6 +15,7 @@
 #define VARIANT_MESSAGE_R1 "VALUE$"
 #define CREATE_SHM_MESSAGE "CREATE_SHM$"
 #define MAP_FILE_MESSAGE "MAP_FILE$"
+#define EXIT_MESSAGE "EXIT$"
 
 int main()
 {
@@ -89,10 +90,12 @@ int main()
         //     }
 
         // }
+        else if(strcmp(Message, EXIT_MESSAGE) == 0){
+            close(fd1);
+            close(fd);
+            unlink(FIFO_NAME);
+        }
         ok = 1;
     }
-    close(fd1);
-    close(fd);
-    unlink(FIFO_NAME);
     return 0;
 }
