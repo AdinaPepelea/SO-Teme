@@ -51,21 +51,16 @@ int main()
     char Message[50];
     int nr = 93348;
     int i = 0;
-    /*read(fd1, &Message[i], 1);
+
+    read(fd1, &Message[i], 1);
     while (Message[i] != '$')
     {
         i++;
         read(fd1, &Message[i], 1);
-    }*/
+    }
+
     while (ok == 0)
     {
-        read(fd1, &Message[i], 1);
-        while (Message[i] != '$')
-        {
-            i++;
-            read(fd1, &Message[i], 1);
-        }
-
         if (strcmp(Message, VARIANT_MESSAGE) == 0)
         {
             write(fd, VARIANT_MESSAGE_R, strlen(VARIANT_MESSAGE_R));
@@ -118,24 +113,6 @@ int main()
             {
                 write(fd, MAP_FILE_MESSAGE, strlen(MAP_FILE_MESSAGE));
                 write(fd, "SUCCESS$", strlen("SUCCESS$"));
-            }
-        }
-        else if (strcmp(Message, WRITE_TO_SHM_MESSAGE) == 0)
-        {
-            unsigned int offset, value;
-            read(fd1, &offset, sizeof(unsigned int));
-            read(fd1, &value, sizeof(unsigned int));
-            if ((offset < 0) || (offset > 4076926) || (offset+(sizeof(unsigned int)) > 4076926))
-            {
-                write(fd, WRITE_TO_SHM_MESSAGE, strlen(WRITE_TO_SHM_MESSAGE));
-                write(fd, "ERROR$", strlen("ERROR$"));
-            }
-            else
-            {
-                *(int *)(data + offset) = value;
-                write(fd, WRITE_TO_SHM_MESSAGE, strlen(WRITE_TO_SHM_MESSAGE));
-                write(fd, "SUCCESS$", strlen("SUCCESS$"));
-                
             }
         }
         else if (strcmp(Message, EXIT_MESSAGE) == 0)
